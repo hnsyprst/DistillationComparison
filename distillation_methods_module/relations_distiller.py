@@ -2,7 +2,6 @@ import torch
 from torch import nn
 import training_utils as utils
 from distillation_methods_module.distiller import Distiller
-import numpy as np
 
 
 if torch.cuda.is_available():
@@ -12,23 +11,20 @@ else:
 
 
 class Relations_Distiller(Distiller):
-    def __init__(self, **kwargs):
+    def __init__(self, hint_layers, guided_layers, **kwargs):
         super().__init__(**kwargs)
+        self.hint_layers = hint_layers
+        self.guided_layers = guided_layers
         self.feature_map = {}
         
     # This helper function defines a hook for collecting feature maps from a given layer in a model
     def get_feature_map(self, name):
         def hook(model, input, output):
-            self.feature_map[name] = output.detach()
+            self.feature_map[name] = output
         return hook
 
     def calculate_FSP_matrix(self, feature_map_1, feature_map_2):
         return torch.matmul(torch.flatten(feature_map_1, start_dim=1), torch.flatten(feature_map_2, start_dim=1).T)
-
-    def get_feature_maps(self, feature_map_list, feature_map_dict, name):
-        feature_map_list.append(feature_map_dict[name].cpu().numpy())
-        feature_map_list = np.concatenate(feature_map_list)
-        return torch.tensor(feature_map_list, requires_grad=True).to('cuda')
 
     def train_epoch_distillation_stage1(self, student_net, teacher_net, train_iter, optimizer):
         # Set the model to training mode
@@ -39,27 +35,20 @@ class Relations_Distiller(Distiller):
         loss_fn = nn.MSELoss().to(device)
 
         for features, labels in train_iter:
-            # initialise a list to store the outputs of the hint layer this batch
-            teacher_feature_map_1_list = []
-            teacher_feature_map_2_list = []
-            student_feature_map_1_list = []
-            student_feature_map_2_list = []
-
-            features = features.to('cuda')
-            labels = labels.to('cuda')
+            features = features.to(device)
+            labels = labels.to(device)
 
             preds = student_net(features)
             teacher_preds = teacher_net(features)
 
             # add the output of the hint layer to the list
-            # this bit could definitely use some cleaning up
-            teacher_feature_maps_1 = self.get_feature_maps(teacher_feature_map_1_list, self.feature_map, 'teacher_linear_2')
-            teacher_feature_maps_2 = self.get_feature_maps(teacher_feature_map_1_list, self.feature_map, 'teacher_linear_3')
-            teacher_FSPs = self.calculate_FSP_matrix(teacher_feature_maps_1, teacher_feature_maps_2)
+            hint_start_layer_feature_map = self.feature_map['hint_start_layer']
+            hint_end_layer_feature_map = self.feature_map['hint_end_layer']
+            teacher_FSPs = self.calculate_FSP_matrix(hint_start_layer_feature_map, hint_end_layer_feature_map)
 
-            student_feature_maps_1 = self.get_feature_maps(student_feature_map_1_list, self.feature_map, 'student_linear_2')
-            student_feature_maps_2 = self.get_feature_maps(student_feature_map_1_list, self.feature_map, 'student_linear_3')
-            student_FSPs = self.calculate_FSP_matrix(student_feature_maps_1, student_feature_maps_2)
+            guided_start_layer_feature_map = self.feature_map['guided_start_layer']
+            guided_end_layer_feature_map = self.feature_map['guided_end_layer']
+            student_FSPs = self.calculate_FSP_matrix(guided_start_layer_feature_map, guided_end_layer_feature_map)
 
             # calculate the loss between the outputs of the regressor for the guided layer and the hint layer
             loss = loss_fn(student_FSPs, teacher_FSPs)
@@ -79,10 +68,10 @@ class Relations_Distiller(Distiller):
         # this means that the outputs of the layer linear_2 will be stored in the dictionary 'feature_map'
         # on every forward pass the network takes
         # in this case, the outputs will be stored in the dictionary with the key 'linear_2'
-        teacher_net.linear_2.register_forward_hook(self.get_feature_map('teacher_linear_2'))
-        teacher_net.linear_3.register_forward_hook(self.get_feature_map('teacher_linear_3'))
-        student_net.linear_2.register_forward_hook(self.get_feature_map('student_linear_2'))
-        student_net.linear_3.register_forward_hook(self.get_feature_map('student_linear_3'))
+        self.hint_layers[0].register_forward_hook(self.get_feature_map('hint_start_layer'))
+        self.hint_layers[1].register_forward_hook(self.get_feature_map('hint_end_layer'))
+        self.guided_layers[0].register_forward_hook(self.get_feature_map('guided_start_layer'))
+        self.guided_layers[1].register_forward_hook(self.get_feature_map('guided_end_layer'))
 
         # Arrays for logging model history
         history_train_accuracy = []
@@ -136,8 +125,8 @@ class Relations_Distiller(Distiller):
         metric = utils.Accumulator(3)
 
         for features, labels in train_set:
-            features = features.to('cuda')
-            labels = labels.to('cuda')
+            features = features.to(device)
+            labels = labels.to(device)
 
             preds = self.student(features)
             loss = loss_fn(preds, labels)
@@ -152,4 +141,4 @@ class Relations_Distiller(Distiller):
 
     def train(self, train_set, test_set, num_epochs):
         self.train_distillation_stage1(self.student, self.teacher, train_set, test_set, num_epochs)
-        self.train_distillation_stage2(self.student, self.teacher, train_set, test_set, num_epochs)
+        return self.train_distillation_stage2(self.student, self.teacher, train_set, test_set, num_epochs)

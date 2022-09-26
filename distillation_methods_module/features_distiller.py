@@ -3,7 +3,6 @@ from torch import nn
 import training_utils as utils
 import network_utils as nutils
 from distillation_methods_module.distiller import Distiller
-import numpy as np
 
 
 if torch.cuda.is_available():
@@ -13,35 +12,35 @@ else:
     
 
 class Features_Distiller(Distiller):
-    def __init__(self, hint_layer, hinted_layer, **kwargs):
+    def __init__(self, hint_layer, guided_layer, **kwargs):
         super().__init__(**kwargs)
         self.feature_map = {}
         self.hint_layer = hint_layer
-        self.hinted_layer = hinted_layer
+        self.guided_layer = guided_layer
 
-        hinted_layer_index = nutils.get_index_from_layer(self.student, hinted_layer)
+        guided_layer_index = nutils.get_index_from_layer(self.student, guided_layer)
 
         # Split the student network into layers before the hint layer and after
         # and add the regressor to the first half of the network
-        modules = list(self.student.children())[:hinted_layer_index+1]
+        modules = list(self.student.children())[:guided_layer_index+1]
         self.prehint_student = nn.Sequential(*modules)
-        modules = list(self.student.children())[hinted_layer_index+1:]
+        modules = list(self.student.children())[guided_layer_index+1:]
         self.posthint_student = nn.Sequential(*modules)
 
 
     # This helper function defines a hook for collecting feature maps from a given layer in a model
     def get_feature_map(self, name):
         def hook(model, input, output):
-            self.feature_map[name] = output.detach()
+            self.feature_map[name] = output
         return hook
 
 
     def train_stage_1(self, train_set, test_set, num_epochs):
         class Stage_1_Student_Net(nn.Module):
-            def __init__(self, prehint, hint_layer, hinted_layer):
+            def __init__(self, prehint, hint_layer, guided_layer):
                 super(Stage_1_Student_Net, self).__init__()
                 self.prehint = prehint
-                self.regressor = nn.Linear(hinted_layer.out_features, hint_layer.out_features)
+                self.regressor = nn.Linear(guided_layer.out_features, hint_layer.out_features)
             
             def forward(self, input):
                 input = torch.flatten(input, start_dim=1)
@@ -50,7 +49,7 @@ class Features_Distiller(Distiller):
 
                 return out
         
-        self.stage_1_student = Stage_1_Student_Net(self.prehint_student, self.hint_layer, self.hinted_layer).to(device)
+        self.stage_1_student = Stage_1_Student_Net(self.prehint_student, self.hint_layer, self.guided_layer).to(device)
         self.hint_layer.register_forward_hook(self.get_feature_map('hint_layer'))
 
         loss_fn = nn.MSELoss().to(device)
@@ -83,20 +82,13 @@ class Features_Distiller(Distiller):
         metric = utils.Accumulator(3)
 
         for features, labels in train_set:
-            # initialise a list to store the outputs of the hint layer this batch
-            feature_map_list = []
-
-            features = features.to('cuda')
-            labels = labels.to('cuda')
+            features = features.to(device)
+            labels = labels.to(device)
 
             preds = student_net(features)
             teacher_preds = teacher_net(features)
 
-            # add the output of the hint layer to the list
-            # this bit could definitely use some cleaning up
-            feature_map_list.append(self.feature_map['hint_layer'].cpu().numpy())
-            feature_map_list = np.concatenate(feature_map_list)
-            teacher_hints = torch.from_numpy(feature_map_list).to('cuda')
+            teacher_hints = self.feature_map['hint_layer']
 
             # calculate the loss between the outputs of the regressor for the guided layer and the hint layer
             loss = loss_fn(preds, teacher_hints)
@@ -159,10 +151,6 @@ class Features_Distiller(Distiller):
             
         return history_train_accuracy, history_train_loss, history_test_accuracy
 
-    def train(self, train_set, test_set, num_epochs): 
-        self.train_stage_1(train_set, test_set, num_epochs)
-        self.train_stage_2(train_set, test_set, num_epochs)
-
     def train_epoch(self, train_set, loss_fn):
         # Set the model to training mode
         self.stage_2_student.train()
@@ -170,8 +158,8 @@ class Features_Distiller(Distiller):
         metric = utils.Accumulator(3)
 
         for features, labels in train_set:
-            features = features.to('cuda')
-            labels = labels.to('cuda')
+            features = features.to(device)
+            labels = labels.to(device)
 
             preds = self.stage_2_student(features)
             loss = loss_fn(preds, labels)
@@ -183,3 +171,7 @@ class Features_Distiller(Distiller):
             metric.add(float(loss.sum()), utils.accuracy(preds, labels), labels.numel())
 
         return metric[0] / metric[2], metric[1] / metric[2]
+    
+    def train(self, train_set, test_set, num_epochs): 
+        self.train_stage_1(train_set, test_set, num_epochs)
+        return self.train_stage_2(train_set, test_set, num_epochs)
