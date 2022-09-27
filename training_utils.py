@@ -67,14 +67,14 @@ def train_epoch(net, train_iter, loss_fn, optimizer):
 
     return metric[0] / metric[2], metric[1] / metric[2]
 
-def train(net, train_iter, test_iter, loss_fn, num_epochs, optimizer): 
+def train(net, train_epoch_fn, train_iter, test_iter, loss_fn, num_epochs, optimizer): 
     # Arrays for logging model history
     history_train_accuracy = []
     history_train_loss = []
     history_test_accuracy = []
 
     for epoch in range(num_epochs):
-        train_metrics = train_epoch(net, train_iter, loss_fn, optimizer)
+        train_metrics = train_epoch_fn(net, train_iter, loss_fn, optimizer)
         test_acc = evaluate_accuracy(net, test_iter)
 
         # Log the model history

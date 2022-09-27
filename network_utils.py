@@ -17,3 +17,11 @@ def get_index_from_name(network, name):
 # Search the network's children for the given index and return the layer name
 def get_name_from_index(network, index):
     return list(network.named_children())[index][0]
+
+# A layer that performs no action
+class Identity(nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+        
+    def forward(self, x):
+        return x

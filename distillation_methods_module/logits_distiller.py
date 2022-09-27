@@ -1,3 +1,14 @@
+""""------------------------------"""
+"""" LOGITS-BASED MODEL DISTILLER """
+""""------------------------------"""
+
+"""
+    Implements the logits-based approach to model distillation proposed by Hinton et al. (2014).
+
+    Hinton, G., Vinyals, O. and Dean, J. (2014)
+    ‘Distilling the Knowledge in a Neural Network’. arXiv. Available at: http://arxiv.org/abs/1503.02531 (Accessed: 5 July 2022).
+"""
+
 import torch
 from torch import nn
 import training_utils as utils
@@ -10,6 +21,8 @@ else:
     device = torch.device("cpu")
 
 
+# temp:     controls the 'softness' of both the student and teacher logits---higher values create
+#           a softer distribution across the logits, a value of 1 creates normal 'hard' logits.
 class Logits_Distiller(Distiller):
     def __init__(self, temp, **kwargs):
         super().__init__(**kwargs)
@@ -18,55 +31,51 @@ class Logits_Distiller(Distiller):
         self.softmax_op = nn.Softmax(dim=1)
         self.mseloss_fn = nn.MSELoss()   
     
-    def my_loss(self, preds, targets, temperature = 5):
+    # Custom loss function softens the distribution of the student and teacher logits and
+    # calculates the L2 distance between them
+    def soft_targets_loss(self, preds, targets, temperature = 5):
         soft_pred = self.softmax_op(preds / temperature)
         soft_targets = self.softmax_op(targets / temperature)
         loss = self.mseloss_fn(soft_pred, soft_targets)
         return loss 
 
-    def train_epoch(self, train_set, loss_fn):
+    """-----------------------------"""
+    """ INTERFACES FOR DISTILLATION """
+    """-----------------------------"""
+
+    ''' This method has a single stage, so these interfaces perform the entirety of knowledge distiillation '''
+
+    def train_epoch(self, net, train_set, loss_fn, optimizer):
         # Set the model to training mode
-        self.student.train()
+        net.train()
         # Sum of training loss, sum of training accuracy, no. of examples
         metric = utils.Accumulator(3)
 
+        # Iterate over the current batch
         for features, labels in train_set:
             features = features.to(device)
             labels = labels.to(device)
 
-            student_preds = self.student(features)
+            # Student and teacher models make predictions
+            student_preds = net(features)
             teacher_preds = self.teacher(features)
 
+            # The loss between the student and teacher soft logits is calculated
             loss = loss_fn(student_preds, teacher_preds, temperature = self.temp)
-            for param in self.student.parameters():
-                param.grad = None
-            loss.mean().backward()
-            self.optimizer.step()
 
+            for param in net.parameters():
+                param.grad = None
+                
+            # Perform backprop
+            loss.mean().backward()
+            optimizer.step()
+
+            # Add metrics to the accumulator
             metric.add(float(loss.sum()), utils.accuracy(student_preds, labels), labels.numel())
 
+        # Return the metrics for this epoch
         return metric[0] / metric[2], metric[1] / metric[2]
 
     def train(self, train_set, test_set, num_epochs): 
-        # Arrays for logging model history
-        history_train_accuracy = []
-        history_train_loss = []
-        history_test_accuracy = []
-
-        loss_fn = self.my_loss
-
-        for epoch in range(num_epochs):
-            train_metrics = self.train_epoch(train_set, loss_fn)
-            test_acc = utils.evaluate_accuracy(self.student, test_set)
-
-            # Log the model history
-            history_train_loss.append(train_metrics[0])
-            history_train_accuracy.append(train_metrics[1])
-            history_test_accuracy.append(test_acc)
-
-            # Print epoch, training accuracy and loss and validation accuracy
-            print('Epoch:\t\t ', epoch)
-            print('train_metrics:\t ', train_metrics)
-            print('test_accuracy:\t ', test_acc)
-            
-        return history_train_accuracy, history_train_loss, history_test_accuracy
+        # Perform knowledge distillation, using 'train_epoch' fn to train the student model each epoch
+        return utils.train(self.student, self.train_epoch, train_set, test_set, self.soft_targets_loss, num_epochs, self.optimizer)
