@@ -24,20 +24,22 @@ else:
 # hint_layer:      a layer from the teacher model, the representation contained within which will be distilled into the student
 # guided_layer:    a layer from the student model to distill a representation from the teacher into
 class Features_Distiller(Distiller):
-    def __init__(self, hint_layer, guided_layer, **kwargs):
+    def __init__(self, hint_layer, guided_layer, is_2D, **kwargs):
         super().__init__(**kwargs)
         self.feature_map = {}
         self.hint_layer = hint_layer
         self.guided_layer = guided_layer
+        self.is_2D = is_2D
 
         # Split the student network into layers up to and including the guided layer and after it
         guided_layer_index = nutils.get_index_from_layer(self.student, guided_layer)
-        # Layers up to and including the guided layer
-        modules = list(self.student.children())[:guided_layer_index+1]
-        self.pre_guided_layer_student = nn.Sequential(*modules)
         # Layers after the guided layer
-        modules = list(self.student.children())[guided_layer_index+1:]
-        self.post_guided_layer_student = nn.Sequential(*modules)
+        self.freeze_list = list(self.student.modules())[guided_layer_index+1:]
+
+        # Freeze all layers after the guided layer
+        for item in self.freeze_list:
+            for param in item.parameters():
+                param.requires_grad = False
 
     # This helper function defines a hook for collecting feature maps from a given layer in a model
     def get_feature_map(self, name):
@@ -84,7 +86,7 @@ class Features_Distiller(Distiller):
             optimizer.step()
 
             # Add metrics to the accumulator
-            metric.add(float(loss.sum()), utils.accuracy(preds, labels), labels.numel())
+            metric.add(float(loss.sum()), utils.accuracy(torch.flatten(preds, start_dim=1), labels), labels.numel())
 
         # Return the metrics for this epoch
         return metric[0] / metric[2], metric[1] / metric[2]
@@ -94,30 +96,40 @@ class Features_Distiller(Distiller):
         # Define a new model using the layers of the student model up to and including the guided layer
         # and attach a regressor that will allow the hint layer to be larger than the guided layer
         class Stage_1_Student_Net(nn.Module):
-            def __init__(self, pre_guided_layer, hint_layer, guided_layer):
+            def __init__(self, student, hint_layer, guided_layer, feature_map_dict, is_2D):
                 super(Stage_1_Student_Net, self).__init__()
-                self.pre_guided_layer = pre_guided_layer
+                self.student = student
+                self.feature_map_dict = feature_map_dict
+                self.is_2D = is_2D
+
                 # Create a regressor to allow the hint layer to be larger than the guided layer
                 # The regressor has an input size equal to the guided layer's output size
                 # and an output size equal to the hint layer's output size
-                self.regressor = nn.Linear(guided_layer.out_features, hint_layer.out_features)
+                if self.is_2D:
+                    self.regressor = nn.Conv2d(guided_layer.out_channels, hint_layer.out_channels, (3, 3), padding=1)
+                else:
+                    self.regressor = nn.Linear(guided_layer.out_features, hint_layer.out_features)
             
             def forward(self, input):
-                input = torch.flatten(input, start_dim=1)
-                out = self.pre_guided_layer(input)
-                out = self.regressor(out)
+                if not self.is_2D:
+                    input = torch.flatten(input, start_dim=1)
+                student_out = self.student(input)
+                
+                guided_layer_out = self.feature_map_dict['guided_layer']
+                out = self.regressor(guided_layer_out)
 
                 return out
         
         # Instantiate a new model containing the layers of the student model up to and including the guided layer
         # attached to the regressor
-        self.stage_1_student = Stage_1_Student_Net(self.pre_guided_layer_student, self.hint_layer, self.guided_layer).to(device)
+        self.stage_1_student = Stage_1_Student_Net(self.student, self.hint_layer, self.guided_layer, self.feature_map, self.is_2D).to(device)
         
         # Use the helper function to attach a forward hook to the hint layer
         # this means that the outputs of this layer will be stored in the dictionary 'feature_map'
         # on every forward pass the network takes
         # the string passed to the helper function defines the feature map's key in the dict
         self.hint_layer.register_forward_hook(self.get_feature_map('hint_layer'))
+        self.guided_layer.register_forward_hook(self.get_feature_map('guided_layer'))
 
         # Perform the first stage of model training, using 'train_epoch_stage_1' fn to train the model each epoch
         loss_fn = nn.MSELoss().to(device)
@@ -135,13 +147,14 @@ class Features_Distiller(Distiller):
         # Define a new model using the now trained layers of the student model up to and including the regressor
         # and reattach the remaining layers of the student model (those after the guided layer)
         class Stage_2_Student_Net(nn.Module):
-            def __init__(self, stage_1_student, post_guided_layer):
+            def __init__(self, stage_1_student):
                 super(Stage_2_Student_Net, self).__init__()
                 self.stage_1_student = stage_1_student
-                self.post_guided_layer = post_guided_layer
+                self.is_2D = self.stage_1_student.is_2D
             
             def forward(self, input):
-                input = torch.flatten(input, start_dim=1)
+                if not self.is_2D:
+                    input = torch.flatten(input, start_dim=1)
                 out = self.stage_1_student(input)
                 out = self.post_guided_layer(out)
 
@@ -150,9 +163,12 @@ class Features_Distiller(Distiller):
         # Change the regressor layer from a nn.Linear to an Identity layer - a layer that performs no action
         # (this is done to essentially 'delete' the regressor layer)
         self.stage_1_student.regressor = nutils.Identity()
-        # Instantiate a new model containing the layers of the student model up to and including the regressor
-        # and reattach it to the remaining layers of the student model (those after the guided layer)
-        self.stage_2_student = Stage_2_Student_Net(self.stage_1_student, self.post_guided_layer_student).to(device)
+        # Unfreeze all layers of the student model
+        for item in self.freeze_list:
+            for param in item.parameters():
+                param.requires_grad = True
+        # Now we just train the student model as normal, with no regressor attached
+        self.stage_2_student = self.student
 
         # Perform the second stage of model training, using 'train_epoch' fn to train the student model each epoch
         loss_fn = nn.CrossEntropyLoss(reduction='none').to(device)

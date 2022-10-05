@@ -43,7 +43,8 @@ def evaluate_accuracy(net, data_iter):
         for features, labels in data_iter:
             features = features.to(device)
             labels = labels.to(device)
-            metric.add(accuracy(net(features), labels), labels.numel())
+            preds = net(features)
+            metric.add(accuracy(torch.flatten(preds, start_dim=1), labels), labels.numel())
     return metric[0] / metric[1]
 
 def train_epoch(net, train_iter, loss_fn, optimizer):
