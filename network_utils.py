@@ -27,6 +27,9 @@ def get_name_from_index(network, index, recursive=True):
     else:
         return list(network.named_children())[index][0]
 
+def get_name_from_layer(network, layer):
+    return get_name_from_index(network, get_index_from_layer(network, layer))
+
 def get_layer_in_module_from_index(module, index):
     return list(module._modules.values())[index]
 
