@@ -136,5 +136,5 @@ class Relations_Distiller(Distiller):
     ''' These functions are used to begin knowledge distillation '''
 
     def train(self, train_set, test_set, num_epochs, wandb_log=False):
-        self.train_stage_1(self.student, self.teacher, train_set, test_set, num_epochs, wandb_log)
+        self.train_stage_1(self.student, self.teacher, train_set, test_set, num_epochs, wandb_log=False)
         return self.train_stage_2(self.student, train_set, test_set, num_epochs, wandb_log)
