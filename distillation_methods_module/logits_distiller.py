@@ -76,6 +76,6 @@ class Logits_Distiller(Distiller):
         # Return the metrics for this epoch
         return metric[0] / metric[2], metric[1] / metric[2]
 
-    def train(self, train_set, test_set, num_epochs): 
+    def train(self, train_set, test_set, num_epochs, wandb_log=False): 
         # Perform knowledge distillation, using 'train_epoch' fn to train the student model each epoch
-        return utils.train(self.student, self.train_epoch, train_set, test_set, self.soft_targets_loss, num_epochs, self.optimizer)
+        return utils.train(self.student, self.train_epoch, train_set, test_set, self.soft_targets_loss, num_epochs, self.optimizer, wandb_log)

@@ -92,7 +92,7 @@ class Features_Distiller(Distiller):
         return metric[0] / metric[2], metric[1] / metric[2]
 
     # Train the student model to match its guided layer to the teacher's hint layer over the given number of epochs
-    def train_stage_1(self, train_set, test_set, num_epochs):
+    def train_stage_1(self, train_set, test_set, num_epochs, wandb_log=False):
         # Define a new model using the layers of the student model up to and including the guided layer
         # and attach a regressor that will allow the hint layer to be larger than the guided layer
         class Stage_1_Student_Net(nn.Module):
@@ -133,7 +133,7 @@ class Features_Distiller(Distiller):
 
         # Perform the first stage of model training, using 'train_epoch_stage_1' fn to train the model each epoch
         loss_fn = nn.MSELoss().to(device)
-        return utils.train(self.stage_1_student, self.train_epoch_stage_1, train_set, test_set, loss_fn, num_epochs, self.optimizer)
+        return utils.train(self.stage_1_student, self.train_epoch_stage_1, train_set, test_set, loss_fn, num_epochs, self.optimizer, wandb_log)
 
 
     """-------------------"""
@@ -143,7 +143,7 @@ class Features_Distiller(Distiller):
 
     ''' Stage 2 involves standard training of the student model, now that it has recieved a 'good initialisation' from Stage 1 '''
 
-    def train_stage_2(self, train_set, test_set, num_epochs):
+    def train_stage_2(self, train_set, test_set, num_epochs, wandb_log=False):
         # Define a new model using the now trained layers of the student model up to and including the regressor
         # and reattach the remaining layers of the student model (those after the guided layer)
         class Stage_2_Student_Net(nn.Module):
@@ -172,7 +172,7 @@ class Features_Distiller(Distiller):
 
         # Perform the second stage of model training, using 'train_epoch' fn to train the student model each epoch
         loss_fn = nn.CrossEntropyLoss(reduction='none').to(device)
-        return utils.train(self.stage_2_student, self.train_epoch, train_set, test_set, loss_fn, num_epochs, self.optimizer)
+        return utils.train(self.stage_2_student, self.train_epoch, train_set, test_set, loss_fn, num_epochs, self.optimizer, wandb_log)
 
     def train_epoch(self, student, train_set, loss_fn, optimizer):
         return utils.train_epoch(student, train_set, loss_fn, optimizer)
@@ -184,6 +184,6 @@ class Features_Distiller(Distiller):
 
     ''' These functions are used to begin knowledge distillation '''
     
-    def train(self, train_set, test_set, num_epochs): 
-        self.train_stage_1(train_set, test_set, num_epochs)
-        return self.train_stage_2(train_set, test_set, num_epochs)
+    def train(self, train_set, test_set, num_epochs, wandb_log=False): 
+        self.train_stage_1(train_set, test_set, num_epochs, wandb_log)
+        return self.train_stage_2(train_set, test_set, num_epochs, wandb_log)
