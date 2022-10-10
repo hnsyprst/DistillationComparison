@@ -87,7 +87,7 @@ class Relations_Distiller(Distiller):
                 # The loss between the student and teacher FSPs is calculated
                 losses.append(loss_fn(student_FSPs, teacher_FSPs))
                 
-            loss = sum(losses)
+            loss = sum(losses) / len(losses)
 
             for param in net.parameters():
                 param.grad = None
