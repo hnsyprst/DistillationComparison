@@ -62,6 +62,7 @@ def train_epoch(net, train_iter, loss_fn, optimizer):
         for param in net.parameters():
             param.grad = None
         loss.mean().backward()
+        nn.utils.clip_grad_norm_(net.parameters(), max_norm=2.0, norm_type=2)
         optimizer.step()
 
         metric.add(float(loss.sum()), accuracy(preds, labels), labels.numel())

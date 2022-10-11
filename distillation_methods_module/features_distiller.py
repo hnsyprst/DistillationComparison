@@ -83,6 +83,7 @@ class Features_Distiller(Distiller):
                 
             # Perform backprop
             loss.mean().backward()
+            nn.utils.clip_grad_norm_(net.parameters(), max_norm=2.0, norm_type=2)
             optimizer.step()
 
             # Add metrics to the accumulator
