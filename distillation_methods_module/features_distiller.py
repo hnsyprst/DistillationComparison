@@ -13,7 +13,8 @@ import torch
 from torch import nn
 import training_utils as utils
 import network_utils as nutils
-from distillation_methods_module.distiller import Distiller, Logits_Distiller
+from distillation_methods_module.distiller import Distiller
+from distillation_methods_module.logits_distiller import Logits_Distiller
 
 
 if torch.cuda.is_available():
