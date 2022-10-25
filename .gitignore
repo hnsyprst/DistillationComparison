@@ -1,4 +1,5 @@
 .distenv/
+wandb/
 
 __pycache__/
 *.pyc

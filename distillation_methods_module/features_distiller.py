@@ -13,7 +13,7 @@ import torch
 from torch import nn
 import training_utils as utils
 import network_utils as nutils
-from distillation_methods_module.distiller import Distiller
+from distillation_methods_module.distiller import Distiller, Logits_Distiller
 
 
 if torch.cuda.is_available():
@@ -24,12 +24,13 @@ else:
 # hint_layer:      a layer from the teacher model, the representation contained within which will be distilled into the student
 # guided_layer:    a layer from the student model to distill a representation from the teacher into
 class Features_Distiller(Distiller):
-    def __init__(self, hint_layer, guided_layer, is_2D, **kwargs):
+    def __init__(self, hint_layer, guided_layer, is_2D, temp, **kwargs):
         super().__init__(**kwargs)
         self.feature_map = {}
         self.hint_layer = hint_layer
         self.guided_layer = guided_layer
         self.is_2D = is_2D
+        self.temp = temp
 
         # Split the student network into layers up to and including the guided layer and after it
         guided_layer_index = nutils.get_index_from_layer(self.student, guided_layer)
@@ -142,7 +143,7 @@ class Features_Distiller(Distiller):
     """ STANDARD TRAINIING """
     """-------------------"""
 
-    ''' Stage 2 involves standard training of the student model, now that it has recieved a 'good initialisation' from Stage 1 '''
+    ''' Stage 2 involves training of the student model using logits distillation, now that it has recieved a 'good initialisation' from Stage 1 '''
 
     def train_stage_2(self, train_set, test_set, num_epochs, wandb_log=False):
         # Define a new model using the now trained layers of the student model up to and including the regressor
@@ -171,9 +172,12 @@ class Features_Distiller(Distiller):
         # Now we just train the student model as normal, with no regressor attached
         self.stage_2_student = self.student
 
-        # Perform the second stage of model training, using 'train_epoch' fn to train the student model each epoch
+        # Perform the second stage of model training
         loss_fn = nn.CrossEntropyLoss(reduction='none').to(device)
-        return utils.train(self.stage_2_student, self.train_epoch, train_set, test_set, loss_fn, num_epochs, self.optimizer, wandb_log)
+
+        logits_distiller = Logits_Distiller(self.temp, teacher=self.teacher, student=self.student, optimizer=self.optimizer)
+
+        return logits_distiller.train(train_set, test_set, num_epochs, wandb_log)
 
     def train_epoch(self, student, train_set, loss_fn, optimizer):
         return utils.train_epoch(student, train_set, loss_fn, optimizer)
