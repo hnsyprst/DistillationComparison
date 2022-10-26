@@ -68,7 +68,7 @@ def train_epoch(net, train_iter, loss_fn, optimizer):
 
     return metric[0] / metric[2], metric[1] / metric[2]
 
-def train(net, train_epoch_fn, train_iter, test_iter, loss_fn, num_epochs, optimizer, wandb_log=False): 
+def train(net, train_epoch_fn, train_iter, test_iter, loss_fn, num_epochs, optimizer, wandb_log=False, calc_val_accuracy=True): 
     if wandb_log:
         import wandb
 
@@ -79,7 +79,10 @@ def train(net, train_epoch_fn, train_iter, test_iter, loss_fn, num_epochs, optim
 
     for epoch in range(num_epochs):
         train_metrics = train_epoch_fn(net, train_iter, loss_fn, optimizer)
-        test_acc = evaluate_accuracy(net, test_iter)
+        if calc_val_accuracy:
+            test_acc = evaluate_accuracy(net, test_iter)
+        else:
+            test_acc = 0
 
         # Log the model history
         history_train_loss.append(train_metrics[0])

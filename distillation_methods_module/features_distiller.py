@@ -136,7 +136,7 @@ class Features_Distiller(Distiller):
 
         # Perform the first stage of model training, using 'train_epoch_stage_1' fn to train the model each epoch
         loss_fn = nn.MSELoss().to(device)
-        return utils.train(self.stage_1_student, self.train_epoch_stage_1, train_set, test_set, loss_fn, num_epochs, self.optimizer, wandb_log)
+        return utils.train(self.stage_1_student, self.train_epoch_stage_1, train_set, test_set, loss_fn, num_epochs, self.optimizer, wandb_log, calc_val_accuracy=False)
 
 
     """-------------------"""
