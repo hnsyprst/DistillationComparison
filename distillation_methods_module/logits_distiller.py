@@ -62,7 +62,10 @@ class Logits_Distiller(Distiller):
             teacher_preds = self.teacher(features)
 
             # The loss between the student and teacher soft logits is calculated
-            loss = (loss_fn(student_preds, teacher_preds, temperature = self.temp) + (self.ce_loss(features, labels) * self.hard_loss_weight)) / 2
+            hard_loss_weight = self.hard_loss_weight
+            soft_loss_weight = 1 - self.hard_loss_weight
+
+            loss = ((loss_fn(student_preds, teacher_preds, temperature = self.temp) * (soft_loss_weight)) + (self.ce_loss(features, labels) * hard_loss_weight)) / 2
 
             for param in net.parameters():
                 param.grad = None
