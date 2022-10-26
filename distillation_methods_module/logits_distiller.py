@@ -24,19 +24,20 @@ else:
 # temp:     controls the 'softness' of both the student and teacher logits---higher values create
 #           a softer distribution across the logits, a value of 1 creates normal 'hard' logits.
 class Logits_Distiller(Distiller):
-    def __init__(self, temp, **kwargs):
+    def __init__(self, temp, hard_loss_weight, **kwargs):
         super().__init__(**kwargs)
         self.temp = temp
+        self.hard_loss_weight = hard_loss_weight
 
         self.softmax_op = nn.Softmax(dim=1)
-        self.mseloss_fn = nn.MSELoss()   
+        self.ce_loss = nn.CrossEntropyLoss().to(device)  
     
     # Custom loss function softens the distribution of the student and teacher logits and
     # calculates the L2 distance between them
     def soft_targets_loss(self, preds, targets, temperature = 5):
         soft_pred = self.softmax_op(preds / temperature)
         soft_targets = self.softmax_op(targets / temperature)
-        loss = self.mseloss_fn(soft_pred, soft_targets)
+        loss = self.ce_loss(soft_pred, soft_targets)
         return loss 
 
     """-----------------------------"""
@@ -61,7 +62,7 @@ class Logits_Distiller(Distiller):
             teacher_preds = self.teacher(features)
 
             # The loss between the student and teacher soft logits is calculated
-            loss = loss_fn(student_preds, teacher_preds, temperature = self.temp)
+            loss = (loss_fn(student_preds, teacher_preds, temperature = self.temp) + (self.ce_loss(features, labels) * self.hard_loss_weight)) / 2
 
             for param in net.parameters():
                 param.grad = None
