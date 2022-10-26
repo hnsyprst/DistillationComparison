@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torchmetrics
 
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
@@ -33,19 +34,17 @@ class Accumulator:
     def __getitem__(self, idx):
         return self.data[idx]
 
-# From the d2l textbook
-
-def evaluate_accuracy(net, data_iter): 
+def evaluate_accuracy(net, data_iter, top_k=1): 
     net.eval()
     """Compute the accuracy for a model on a dataset."""
-    metric = Accumulator(2)  # No. of correct predictions, no. of predictions
+    metric = Accumulator(1)  # No. of correct predictions, no. of predictions
     with torch.no_grad():
         for features, labels in data_iter:
             features = features.to(device)
             labels = labels.to(device)
             preds = net(features)
-            metric.add(accuracy(torch.flatten(preds, start_dim=1), labels), labels.numel())
-    return metric[0] / metric[1]
+            metric.add(torchmetrics.functional.accuracy(preds, labels, top_k=top_k))
+    return metric[0] / len(data_iter)
 
 def train_epoch(net, train_iter, loss_fn, optimizer):
     # Set the model to training mode
