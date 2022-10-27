@@ -30,7 +30,7 @@ class Logits_Distiller(Distiller):
         self.hard_loss_weight = hard_loss_weight
 
         self.softmax_op = nn.Softmax(dim=1)
-        self.ce_loss = nn.CrossEntropyLoss().to(device)  
+        self.ce_loss = nn.CrossEntropyLoss(reduction='none').to(device)
     
     # Custom loss function softens the distribution of the student and teacher logits and
     # calculates the L2 distance between them
