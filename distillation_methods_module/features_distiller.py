@@ -25,13 +25,14 @@ else:
 # hint_layer:      a layer from the teacher model, the representation contained within which will be distilled into the student
 # guided_layer:    a layer from the student model to distill a representation from the teacher into
 class Features_Distiller(Distiller):
-    def __init__(self, hint_layer, guided_layer, is_2D, temp, **kwargs):
+    def __init__(self, hint_layer, guided_layer, is_2D, temp, hard_loss_weight, **kwargs):
         super().__init__(**kwargs)
         self.feature_map = {}
         self.hint_layer = hint_layer
         self.guided_layer = guided_layer
         self.is_2D = is_2D
         self.temp = temp
+        self.hard_loss_weight = hard_loss_weight
 
         # Split the student network into layers up to and including the guided layer and after it
         guided_layer_index = nutils.get_index_from_layer(self.student, guided_layer)
@@ -176,7 +177,7 @@ class Features_Distiller(Distiller):
         # Perform the second stage of model training
         loss_fn = nn.CrossEntropyLoss(reduction='none').to(device)
 
-        logits_distiller = Logits_Distiller(self.temp, teacher=self.teacher, student=self.student, optimizer=self.optimizer)
+        logits_distiller = Logits_Distiller(self.temp, self.hard_loss_weight, teacher=self.teacher, student=self.student, optimizer=self.optimizer)
 
         return logits_distiller.train(train_set, test_set, num_epochs, wandb_log)
 
