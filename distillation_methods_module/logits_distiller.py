@@ -65,7 +65,7 @@ class Logits_Distiller(Distiller):
             hard_loss_weight = self.hard_loss_weight
             soft_loss_weight = 1 - self.hard_loss_weight
 
-            loss = ((loss_fn(student_preds, teacher_preds, temperature = self.temp) * (soft_loss_weight)) + (self.ce_loss(features, labels) * hard_loss_weight)) / 2
+            loss = ((loss_fn(student_preds, teacher_preds, temperature = self.temp) * (soft_loss_weight)) + (self.ce_loss(student_preds, labels) * hard_loss_weight)) / 2
 
             for param in net.parameters():
                 param.grad = None
