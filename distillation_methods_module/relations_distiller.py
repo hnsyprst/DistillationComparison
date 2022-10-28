@@ -124,6 +124,7 @@ class Relations_Distiller(Distiller):
             guided_pair[0].register_forward_hook(self.get_feature_map('guided_start_%d' %count))
             guided_pair[1].register_forward_hook(self.get_feature_map('guided_end_%d' %count))
         
+        print(self.feature_map)
 
         # Perform the first stage of model training, using 'train_epoch_stage_1' fn to train the model each epoch
         loss_fn = nn.MSELoss().to(device)
