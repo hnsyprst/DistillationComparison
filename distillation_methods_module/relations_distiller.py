@@ -113,10 +113,12 @@ class Relations_Distiller(Distiller):
         # on every forward pass the network takes
         # the string passed to the helper function defines each feature map's key in the dict
         for count, hint_pair in enumerate(self.hint_layers):
+            print("registering hint pair %d" %count)
             hint_pair[0].register_forward_hook(self.get_feature_map('hint_start_%d' %count))
             hint_pair[1].register_forward_hook(self.get_feature_map('hint_end_%d' %count))
         
         for count, guided_pair in enumerate(self.guided_layers):
+            print("registering guided pair %d" %count)
             guided_pair[0].register_forward_hook(self.get_feature_map('guided_start_%d' %count))
             guided_pair[1].register_forward_hook(self.get_feature_map('guided_end_%d' %count))
         
