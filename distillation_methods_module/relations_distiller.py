@@ -46,7 +46,7 @@ class Relations_Distiller(Distiller):
     # code modified from https://github.com/AberHu/Knowledge-Distillation-Zoo
     def calculate_FSP_matrix(self, feature_map_1, feature_map_2):
         if feature_map_1.size(2) > feature_map_2.size(2):
-            feature_map_1 = F.adaptive_max_pool2d(feature_map_1, (feature_map_2.size(2), feature_map_2.size(3)))
+            feature_map_1 = nn.functional.adaptive_max_pool2d(feature_map_1, (feature_map_2.size(2), feature_map_2.size(3)))
 
         feature_map_1 = feature_map_1.view(feature_map_1.size(0), feature_map_1.size(1), -1)
         feature_map_2 = feature_map_2.view(feature_map_2.size(0), feature_map_2.size(1), -1).transpose(1,2)
