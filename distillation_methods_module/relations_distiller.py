@@ -44,7 +44,7 @@ class Relations_Distiller(Distiller):
     # Calculate the flow of solution procedure (FSP) matrix of the given feature maps
     # (same calculation as for a Gram matrix but between two feature maps instead of one and its transpose)
     # code modified from https://github.com/AberHu/Knowledge-Distillation-Zoo
-    def calculate_FSP_matrix(feature_map_1, feature_map_2):
+    def calculate_FSP_matrix(self, feature_map_1, feature_map_2):
         feature_map_1 = feature_map_1.view(feature_map_1.size(0), feature_map_1.size(1), -1)
         feature_map_2 = feature_map_2.view(feature_map_2.size(0), feature_map_2.size(1), -1).transpose(1,2)
         return torch.bmm(feature_map_1, feature_map_2) / feature_map_1.size(2)
