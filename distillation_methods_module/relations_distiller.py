@@ -93,6 +93,9 @@ class Relations_Distiller(Distiller):
                 guided_start_layer_feature_map = guided_feature_maps['guided_start_%d' %count]
                 guided_end_layer_feature_map = guided_feature_maps['guided_end_%d' %count]
                 student_FSPs = self.calculate_FSP_matrix(guided_start_layer_feature_map, guided_end_layer_feature_map)
+                
+                if student_FSPs.size(1) != teacher_FSPs.size(1):
+                    student_FSPs = nn.functional.adaptive_avg_pool2d(student_FSPs, (teacher_FSPs.size(1), teacher_FSPs.size(2)))
 
                 # The loss between the student and teacher FSPs is calculated
                 losses.append(loss_fn(student_FSPs, teacher_FSPs))
