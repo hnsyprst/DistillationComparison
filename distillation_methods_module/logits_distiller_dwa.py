@@ -107,15 +107,11 @@ class Logits_Distiller_DWA(Distiller):
             student_preds = net(features)
             teacher_preds = self.teacher(features)
 
-            # The loss between the student and teacher soft logits is calculated
-            hard_loss_weight = self.hard_loss_weight
-            soft_loss_weight = 1 - self.hard_loss_weight
-
             #loss = (((loss_fn(student_preds, teacher_preds, temperature = self.temp) * (soft_loss_weight)) + (self.ce_loss(student_preds, labels) * hard_loss_weight)) / 2) * self.temp * self.temp
             soft_loss = nn.functional.kl_div(nn.functional.log_softmax(student_preds/self.temp, dim=1),
 						nn.functional.softmax(teacher_preds/self.temp, dim=1),
 						reduction='batchmean') * self.temp * self.temp
-            hard_loss = (self.ce_loss(student_preds, labels) * hard_loss_weight) / 2
+            hard_loss = self.ce_loss(student_preds, labels)
 
             loss = (lambda_weight[0, epoch] * soft_loss) + (lambda_weight[1, epoch] * hard_loss)
             
