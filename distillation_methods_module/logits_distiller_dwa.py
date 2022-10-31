@@ -57,19 +57,20 @@ class Logits_Distiller_DWA(Distiller):
         history_test_accuracy = []
         
         T = self.weight_temp
-        avg_cost = np.zeros([num_epochs, 24], dtype=np.float32)
-        lambda_weight = np.ones([2, num_epochs])
+        
+        self.avg_cost = np.zeros([num_epochs, 2], dtype=np.float32)
+        self.lambda_weight = np.ones([2, num_epochs])
 
         for epoch in range(num_epochs):
             if epoch == 0 or epoch == 1:
-                lambda_weight[:, epoch] = 1.0
+                self.lambda_weight[:, epoch] = 1.0
             else:
-                w_1 = avg_cost[epoch - 1, 0] / avg_cost[epoch - 2, 0]
-                w_2 = avg_cost[epoch - 1, 3] / avg_cost[epoch - 2, 3]
-                lambda_weight[0, epoch] = 2 * np.exp(w_1 / T) / (np.exp(w_1 / T) + np.exp(w_2 / T))
-                lambda_weight[1, epoch] = 2 * np.exp(w_2 / T) / (np.exp(w_1 / T) + np.exp(w_2 / T))
+                w_1 = self.avg_cost[epoch - 1, 0] / self.avg_cost[epoch - 2, 0]
+                w_2 = self.avg_cost[epoch - 1, 1] / self.avg_cost[epoch - 2, 1]
+                self.lambda_weight[0, epoch] = 2 * np.exp(w_1 / T) / (np.exp(w_1 / T) + np.exp(w_2 / T))
+                self.lambda_weight[1, epoch] = 2 * np.exp(w_2 / T) / (np.exp(w_1 / T) + np.exp(w_2 / T))
 
-            train_metrics = train_epoch_fn(net, train_iter, loss_fn, optimizer, epoch, lambda_weight)
+            train_metrics = train_epoch_fn(net, train_iter, loss_fn, optimizer, epoch, self.lambda_weight)
             if calc_val_accuracy:
                 test_acc = utils.evaluate_accuracy(net, test_iter)
             else:
@@ -112,6 +113,9 @@ class Logits_Distiller_DWA(Distiller):
 						nn.functional.softmax(teacher_preds/self.temp, dim=1),
 						reduction='batchmean') * self.temp * self.temp
             hard_loss = self.ce_loss(student_preds, labels)
+
+            self.avg_cost[epoch, 0] += soft_loss / len(train_set)
+            self.avg_cost[epoch, 1] += hard_loss / len(train_set)
 
             loss = (lambda_weight[0, epoch] * soft_loss) + (lambda_weight[1, epoch] * hard_loss)
             
