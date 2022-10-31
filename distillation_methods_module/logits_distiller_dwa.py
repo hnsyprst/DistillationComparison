@@ -47,7 +47,7 @@ class Logits_Distiller_DWA(Distiller):
 
     ''' This method has a single stage, so these interfaces perform the entirety of knowledge distiillation '''
 
-    def train(self, net, train_epoch_fn, train_iter, test_iter, loss_fn, num_epochs, optimizer, wandb_log=False, calc_val_accuracy=True): 
+    def train_distillation(self, net, train_epoch_fn, train_iter, test_iter, loss_fn, num_epochs, optimizer, wandb_log=False, calc_val_accuracy=True): 
         if wandb_log:
             import wandb
 
@@ -66,8 +66,8 @@ class Logits_Distiller_DWA(Distiller):
             else:
                 w_1 = avg_cost[epoch - 1, 0] / avg_cost[epoch - 2, 0]
                 w_2 = avg_cost[epoch - 1, 3] / avg_cost[epoch - 2, 3]
-                lambda_weight[0, epoch] = 3 * np.exp(w_1 / T) / (np.exp(w_1 / T) + np.exp(w_2 / T))
-                lambda_weight[1, epoch] = 3 * np.exp(w_2 / T) / (np.exp(w_1 / T) + np.exp(w_2 / T))
+                lambda_weight[0, epoch] = 2 * np.exp(w_1 / T) / (np.exp(w_1 / T) + np.exp(w_2 / T))
+                lambda_weight[1, epoch] = 2 * np.exp(w_2 / T) / (np.exp(w_1 / T) + np.exp(w_2 / T))
 
             train_metrics = train_epoch_fn(net, train_iter, loss_fn, optimizer, epoch, lambda_weight)
             if calc_val_accuracy:
@@ -133,6 +133,6 @@ class Logits_Distiller_DWA(Distiller):
         # Return the metrics for this epoch
         return metric[0] / metric[2], metric[1] / metric[2]
 
-    #def train(self, train_set, test_set, num_epochs, wandb_log=False): 
-    #    # Perform knowledge distillation, using 'train_epoch' fn to train the student model each epoch
-    #    return train(self.student, self.train_epoch, train_set, test_set, self.soft_targets_loss, num_epochs, self.optimizer, wandb_log)
+    def train(self, train_set, test_set, num_epochs, wandb_log=False): 
+        # Perform knowledge distillation, using 'train_epoch' fn to train the student model each epoch
+        return self.train_distillation(self.student, self.train_epoch, train_set, test_set, self.soft_targets_loss, num_epochs, self.optimizer, wandb_log)
