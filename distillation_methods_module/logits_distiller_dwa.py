@@ -114,10 +114,10 @@ class Logits_Distiller_DWA(Distiller):
 						reduction='batchmean') * self.temp * self.temp
             hard_loss = self.ce_loss(student_preds, labels)
 
-            self.avg_cost[epoch, 0] += soft_loss / len(train_set)
-            self.avg_cost[epoch, 1] += hard_loss / len(train_set)
+            self.avg_cost[epoch, 0] += soft_loss.item() / len(train_set)
+            self.avg_cost[epoch, 1] += hard_loss.item() / len(train_set)
 
-            loss = (lambda_weight[0, epoch] * soft_loss.item()) + (lambda_weight[1, epoch] * hard_loss.item())
+            loss = (lambda_weight[0, epoch] * soft_loss) + (lambda_weight[1, epoch] * hard_loss)
             
             for param in net.parameters():
                 param.grad = None
