@@ -1,7 +1,9 @@
 from .logits_distiller import Logits_Distiller
 from .features_distiller import Features_Distiller
 from .relations_distiller import Relations_Distiller
+from .logits_distiller_dwa import Logits_Distiller_DWA
 
 del logits_distiller
 del features_distiller
 del relations_distiller
+del logits_distiller_dwa
