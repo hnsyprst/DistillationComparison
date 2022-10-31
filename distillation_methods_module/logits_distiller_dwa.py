@@ -64,7 +64,7 @@ class Logits_Distiller_DWA(Distiller):
         for epoch in range(num_epochs):
             if epoch == 0 or epoch == 1:
                 self.lambda_weight[0, epoch] = 1.0
-                self.lambda_weight[1, epoch] = 0.8
+                self.lambda_weight[1, epoch] = 0.2
             else:
                 w_1 = self.avg_cost[epoch - 1, 0] / self.avg_cost[epoch - 2, 0]
                 w_2 = self.avg_cost[epoch - 1, 1] / self.avg_cost[epoch - 2, 1]
