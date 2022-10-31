@@ -113,9 +113,7 @@ class Logits_Distiller_DWA(Distiller):
 						nn.functional.softmax(teacher_preds/self.temp, dim=1),
 						reduction='batchmean') * self.temp * self.temp
             hard_loss = self.ce_loss(student_preds, labels)
-
-            print(soft_loss)
-            print(hard_loss)
+            hard_loss = torch.mean(hard_loss)
 
             self.avg_cost[epoch, 0] += soft_loss.item() / len(train_set)
             self.avg_cost[epoch, 1] += hard_loss.item() / len(train_set)
