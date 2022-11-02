@@ -24,7 +24,7 @@ else:
     
 # hint_layer:      a layer from the teacher model, the representation contained within which will be distilled into the student
 # guided_layer:    a layer from the student model to distill a representation from the teacher into
-class Features_Distiller(Distiller):
+class Features_Distiller_DWA(Distiller):
     def __init__(self, hint_layer, guided_layer, is_2D, temp, weight_temp, **kwargs):
         super().__init__(**kwargs)
         self.feature_map = {}
