@@ -5,7 +5,7 @@ This repository also contains an implementation of dynamic weight average, a tec
 
 This repository utilises code for training procedures modified from implementations presented in the Dive into Deep Learning textbook (Zhang et al., 2021).
 
-A [Jupyter notebook](distillation_interface.ipynb) is provided for running experiments. Titles and markdown are provided in the notebook for ease of use. The ResNet50 model used as a teacher in our experiments can be found [here](https://drive.google.com/file/d/1Vdlv-Aw1F0eEkkK89butpNDRFB1d1ozb/view?usp=sharing).
+A [Jupyter notebook](distillation_interface.ipynb) is provided for running experiments. Titles and markdown are provided in the notebook for ease of use. We recommend using Google Colaboratory to run the notebook. The ResNet50 model used as a teacher in our experiments can be found [here](https://drive.google.com/file/d/1Vdlv-Aw1F0eEkkK89butpNDRFB1d1ozb/view?usp=sharing).
 
 # Implementations
 The values in the distiller_name column below can be used to access their respective knowledge distillation approaches in the Jupyter notebook. 
