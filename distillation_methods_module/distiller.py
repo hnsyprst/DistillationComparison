@@ -1,4 +1,4 @@
-# A base class for knolwedge distillation
+# A base class for knowledge distillation
 
 # teacher:      the model containing knowledge to be distilled
 # student:      the model to distill knowledge into

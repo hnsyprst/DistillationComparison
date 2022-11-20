@@ -1,3 +1,16 @@
+""""------------------------------"""
+"""" TRAINING PROCEDURE UTILITIES """
+""""------------------------------"""
+
+"""
+    Implements several useful functions for training models in PyTorch.
+    Code taken from the Dive into Deep Learning textbook (Zhang et al., 2021).
+
+    REFERENCES:
+    Zhang, A., Lipton, Z.C., Li, M. and Smola, A.J. (2021)
+    Dive into Deep Learning. Available at: https://d2l.ai/ (Accessed: 20 November 2022).
+"""
+
 import torch
 from torch import nn
 import torchmetrics
@@ -17,8 +30,6 @@ def accuracy(y_hat, y):  #y_hat is a matrix; 2nd dimension stores prediction sco
 
     cmp = (y_hat.type(y.dtype) == y)  # because`==` is sensitive to data types
     return float(cmp.type(y.dtype).sum()) # Taking the sum yields the number of correct predictions.
-
-# From the d2l textbook
 
 class Accumulator:
     """For accumulating sums over `n` variables."""

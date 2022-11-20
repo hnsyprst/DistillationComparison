@@ -5,8 +5,19 @@
 """
     Implements the logits-based approach to model distillation proposed by Hinton et al. (2014).
 
+    Logits-based knowledge distillation loss function calculation modified from Hu's implementation (2022).
+    
+    Some code for training procedures modified from the Dive into Deep Learning textbook (Zhang et al., 2021).
+
+    REFERENCES:
     Hinton, G., Vinyals, O. and Dean, J. (2014)
     ‘Distilling the Knowledge in a Neural Network’. arXiv. Available at: http://arxiv.org/abs/1503.02531 (Accessed: 5 July 2022).
+
+    Hu, A. (2022)
+    ‘Knowledge-Distillation-Zoo’. Available at: https://github.com/AberHu/Knowledge-Distillation-Zoo (Accessed: 30 October 2022).
+
+    Zhang, A., Lipton, Z.C., Li, M. and Smola, A.J. (2021)
+    Dive into Deep Learning. Available at: https://d2l.ai/ (Accessed: 20 November 2022).
 """
 
 import torch
@@ -21,8 +32,9 @@ else:
     device = torch.device("cpu")
 
 
-# temp:     controls the 'softness' of both the student and teacher logits---higher values create
-#           a softer distribution across the logits, a value of 1 creates normal 'hard' logits.
+# temp:             Temperature hyperparameter, controls the 'softness' of both the student and teacher logits---higher values create
+#                   a softer distribution across the logits, a value of 1 creates normal 'hard' logits.
+# hard_loss_weight: Weighting coefficient for the hard targets loss function
 class Logits_Distiller(Distiller):
     def __init__(self, temp, hard_loss_weight, **kwargs):
         super().__init__(**kwargs)
@@ -46,6 +58,7 @@ class Logits_Distiller(Distiller):
 
     ''' This method has a single stage, so these interfaces perform the entirety of knowledge distiillation '''
 
+    # Some code for training procedure modified from the Dive into Deep Learning textbook (Zhang et al., 2021)
     def train_epoch(self, net, train_set, loss_fn, optimizer):
         # Set the model to training mode
         net.train()
@@ -65,7 +78,7 @@ class Logits_Distiller(Distiller):
             hard_loss_weight = self.hard_loss_weight
             soft_loss_weight = 1 - self.hard_loss_weight
 
-            #loss = (((loss_fn(student_preds, teacher_preds, temperature = self.temp) * (soft_loss_weight)) + (self.ce_loss(student_preds, labels) * hard_loss_weight)) / 2) * self.temp * self.temp
+            # Calculation modified from Hu's implementation (2022)
             loss = nn.functional.kl_div(nn.functional.log_softmax(student_preds/self.temp, dim=1),
 						nn.functional.softmax(teacher_preds/self.temp, dim=1),
 						reduction='batchmean') * self.temp * self.temp

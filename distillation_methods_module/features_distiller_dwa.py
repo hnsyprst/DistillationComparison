@@ -3,10 +3,20 @@
 """"-------------------------------"""
 
 """
-    Implements the feature-based approach to model distillation proposed by Romero et al. (2015).
-    
+    Implements the feature-based approach to model distillation proposed by Romero et al. (2015),
+    adding the dynamic weight average technique proposed by Liu et al. (2019).
+
+    Some code for training procedures modified from the Dive into Deep Learning textbook (Zhang et al., 2021).
+
+    REFERENCES:
+    Liu, S., Johns, E. and Davison, A.J. (2019)
+    ‘End-to-End Multi-Task Learning with Attention’. arXiv. Available at: http://arxiv.org/abs/1803.10704 (Accessed: 31 October 2022).
+
     Romero, A., Ballas, N., Kahou, S.E., Chassang, A., Gatta, C. and Bengio, Y. (2015) 
     ‘FitNets: Hints for Thin Deep Nets’. arXiv. Available at: http://arxiv.org/abs/1412.6550 (Accessed: 31 August 2022).
+
+    Zhang, A., Lipton, Z.C., Li, M. and Smola, A.J. (2021)
+    Dive into Deep Learning. Available at: https://d2l.ai/ (Accessed: 20 November 2022).
 """
 
 import torch
@@ -16,14 +26,16 @@ import network_utils as nutils
 from distillation_methods_module.distiller import Distiller
 from distillation_methods_module.logits_distiller_dwa import Logits_Distiller_DWA
 
-
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
 else:
     device = torch.device("cpu")
     
-# hint_layer:      a layer from the teacher model, the representation contained within which will be distilled into the student
-# guided_layer:    a layer from the student model to distill a representation from the teacher into
+# hint_layer:      A layer from the teacher model, the representation contained within which will be distilled into the student
+# guided_layer:    A layer from the student model to distill a representation from the teacher into
+# is_2D:           A flag noting the dimensionality of the input
+# temp:            Temperature hyperparameter for logit-based distillation
+# weight_temp:     Temperature hyperparameter for dynamic weight average
 class Features_Distiller_DWA(Distiller):
     def __init__(self, hint_layer, guided_layer, is_2D, temp, weight_temp, **kwargs):
         super().__init__(**kwargs)
@@ -50,7 +62,6 @@ class Features_Distiller_DWA(Distiller):
             self.feature_map[name] = output
         return hook
 
-
     """------------------------"""
     """    STAGE 1 TRAINING    """
     """ KNOWLEDGE DISTILLATION """
@@ -60,6 +71,7 @@ class Features_Distiller_DWA(Distiller):
         by training the student to match the output of its guided layer to the output of the hint layer '''
 
     # Train the student model to match its guided layer to the teacher's hint layer over one minibatch
+    # Some code modified from the Dive into Deep Learning textbook (Zhang et al., 2021)
     def train_epoch_stage_1(self, net, train_set, loss_fn, optimizer):
         # Set the model to training mode
         net.train()
@@ -96,6 +108,7 @@ class Features_Distiller_DWA(Distiller):
         return metric[0] / metric[2], metric[1] / metric[2]
 
     # Train the student model to match its guided layer to the teacher's hint layer over the given number of epochs
+    # Some code modified from the Dive into Deep Learning textbook (Zhang et al., 2021)
     def train_stage_1(self, train_set, test_set, num_epochs, wandb_log=False):
         # Define a new model using the layers of the student model up to and including the guided layer
         # and attach a regressor that will allow the hint layer to be larger than the guided layer
@@ -176,9 +189,7 @@ class Features_Distiller_DWA(Distiller):
 
         # Perform the second stage of model training
         loss_fn = nn.CrossEntropyLoss(reduction='none').to(device)
-
         logits_distiller = Logits_Distiller_DWA(self.temp, self.weight_temp, teacher=self.teacher, student=self.student, optimizer=self.optimizer)
-
         return logits_distiller.train(train_set, test_set, num_epochs, wandb_log)
 
     def train_epoch(self, student, train_set, loss_fn, optimizer):

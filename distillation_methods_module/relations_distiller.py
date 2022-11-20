@@ -5,10 +5,21 @@
 """
     Implements the relations-based approach to model distillation proposed by Yim et al. (2017).
 
+    Flow of solution procedure matrix calculation modified from code modified from Hu's implementation (2022).
+    
+    Some code for training procedures modified from the Dive into Deep Learning textbook (Zhang et al., 2021).
+
+    REFERENCES:
+    Hu, A. (2022)
+    ‘Knowledge-Distillation-Zoo’. Available at: https://github.com/AberHu/Knowledge-Distillation-Zoo (Accessed: 30 October 2022).
+
     Yim, J., Joo, D., Bae, J. and Kim, J. (2017)
     ‘A Gift from Knowledge Distillation: Fast Optimization, Network Minimization and Transfer Learning’,
     in 2017 IEEE Conference on Computer Vision and Pattern Recognition (CVPR), Honolulu, HI: IEEE, pp. 7130–7138.
     Available at: https://doi.org/10.1109/CVPR.2017.754  (Accessed: 27 September 2022). 
+
+    Zhang, A., Lipton, Z.C., Li, M. and Smola, A.J. (2021)
+    Dive into Deep Learning. Available at: https://d2l.ai/ (Accessed: 20 November 2022).
 """
 
 import torch
@@ -43,7 +54,7 @@ class Relations_Distiller(Distiller):
 
     # Calculate the flow of solution procedure (FSP) matrix of the given feature maps
     # (same calculation as for a Gram matrix but between two feature maps instead of one and its transpose)
-    # code modified from https://github.com/AberHu/Knowledge-Distillation-Zoo
+    # Calculation modified from Hu's implementation (2022)
     def calculate_FSP_matrix(self, feature_map_1, feature_map_2):
         if feature_map_1.size(2) > feature_map_2.size(2):
             feature_map_1 = nn.functional.adaptive_max_pool2d(feature_map_1, (feature_map_2.size(2), feature_map_2.size(3)))
@@ -62,6 +73,7 @@ class Relations_Distiller(Distiller):
         by training the student to match its FSP matrices to the teacher's FSP matrices '''
 
     # Train the student model to match its FSPs to the teacher's FSPs over one minibatch
+    # Some code for training procedure modified from the Dive into Deep Learning textbook (Zhang et al., 2021)
     def train_epoch_stage_1(self, net, train_set, loss_fn, optimizer):
         # Set the model to training mode
         net.train()
@@ -117,21 +129,12 @@ class Relations_Distiller(Distiller):
         return metric[0] / metric[2], metric[1] / metric[2]
 
     # Train the student model to match its FSPs to the teacher's FSPs over the given number of epochs
+    # Some code for training procedure modified from the Dive into Deep Learning textbook (Zhang et al., 2021)
     def train_stage_1(self, student_net, teacher_net, train_set, test_set, num_epochs, wandb_log=False): 
         # Use the helper function to attach a forward hook to the hint and guided layers
         # this means that the outputs of these layers will be stored in the dictionary 'feature_map'
         # on every forward pass the network takes
-        # the string passed to the helper function defines each feature map's key in the dict
-        #for count, hint_pair in enumerate(self.hint_layers):
-        #    print("registering hint pair %d" %count)
-        #    hint_pair[0].register_forward_hook(self.get_feature_map('hint_start_%d' %count))
-        #    hint_pair[1].register_forward_hook(self.get_feature_map('hint_end_%d' %count))
-        
-        #for count, guided_pair in enumerate(self.guided_layers):
-        #    print("registering guided pair %d" %count)
-        #    guided_pair[0].register_forward_hook(self.get_feature_map('guided_start_%d' %count))
-        #    guided_pair[1].register_forward_hook(self.get_feature_map('guided_end_%d' %count))
-        
+        # the string passed to the helper function defines each feature map's key in the dict        
         hint_dict = {}
         for count, hint_pair in enumerate(self.hint_layers):
             hint_dict[hint_pair[0]] = 'hint_start_%d' %count
