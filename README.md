@@ -8,7 +8,7 @@ This repository utilises code for training procedures modified from implementati
 A [Jupyter notebook](distillation_interface.ipynb) is provided for running experiments. Titles and markdown are provided in the notebook for ease of use.
 
 # Implementations
-The values in the distiller_name column below can be used to access their respective knowledge distillation approaches in the Jupyter notebook.
+The values in the distiller_name column below can be used to access their respective knowledge distillation approaches in the Jupyter notebook. The ResNet50 model used as a teacher in our experiments can be found [here](https://drive.google.com/file/d/1Vdlv-Aw1F0eEkkK89butpNDRFB1d1ozb/view?usp=sharing).
 
 | Approach Name and Link                                            | Reference(s)                                | distiller_name  |
 |:------------------------------------------------------------------|:--------------------------------------------|:----------------|
