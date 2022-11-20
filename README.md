@@ -15,8 +15,8 @@ The values in the distiller_name column below can be used to access their respec
 | [Logit-based knowledge distillation](distillation_methods_module/logits_distiller.py)                                | Hinton et al. (2014)                        | logits          |
 | [Feature-based knowledge distillation](distillation_methods_module/features_distiller.py)                              | Romero et al. (2015)                        | features        |
 | [Relation-based knowledge distillation](distillation_methods_module/relations_distiller.py)                             | Yim et al. (2017)                           | relations       |
-| [Logit-based knowledge distillation with Dynamic Weight Average](distillation_methods_module/logits_distiller_dwa.py)    | Hinton et al. (2014) and Liu et al. (2019)  | logits-DWA      |
-| [Feature-based knowledge distillation with Dynamic Weight Average](distillation_methods_module/features_distiller_dwa.py)  | Romero et al. (2015) and Liu et al. (2019)  | features-DWA    |
+| [Logit-based knowledge distillation with dynamic weight average](distillation_methods_module/logits_distiller_dwa.py)    | Hinton et al. (2014) and Liu et al. (2019)  | logits-DWA      |
+| [Feature-based knowledge distillation with dynamic weight average](distillation_methods_module/features_distiller_dwa.py)  | Romero et al. (2015) and Liu et al. (2019)  | features-DWA    |
 
 # References
 Hinton, G., Vinyals, O. and Dean, J. (2014) ‘Distilling the Knowledge in a Neural Network’.
